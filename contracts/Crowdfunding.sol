@@ -35,8 +35,7 @@ contract Crowdfunding {
         uint duration;
         uint amountRaised;
     }
-
-    // 
+ 
     mapping (address => Campaign) UsersCampaigns;
 
     Campaign[] public campaigns;
@@ -70,23 +69,31 @@ contract Crowdfunding {
         }
     */
 
-   // ANOTHER WAY TO DO THE ABOVE CODE IS TO USE THE MAPPING 
+   // ANOTHER WAY TO DO THE ABOVE CODE IS TO USE THE MAPPING ABOVE DEPENDING ON WHICH COSTS LESS GAS
+
+    function getUsersCampaign() public view returns (Campaign memory) {
+        return UsersCampaigns[owner];
+    }
 
 
+    // Function to get the number of campaigns created by the array length
     function getCampaignCount() public view returns (uint) {
         return campaigns.length;
     }
 
+    // Function to get the balance/amountRaised in a specified campaign, by the index
     function getCampaignBalance(uint _i) public view returns (uint) {
         return campaigns[_i].amountRaised;
     }
 
+    // Function to get a specified campaigns details by the index
     function getCampaignDetails(uint _i) public view returns (Campaign memory) {
         return campaigns[_i];
     }
 
+    // Function to donate to a campaign, we grab the capmign by the index and add the msg.value amount to the amount raised. Before that we check to make sure that the duration time has not yet passed. Then emitting a donations event
     function donate(uint _i) public payable {
-        require(campaigns[_i].duration <= block.timestamp);
+        require(block.timestamp < campaigns[_i].duration, "Campaign duration has elapsed");
 
         Campaign memory destination = campaigns[_i];
         destination.amountRaised += msg.value;
@@ -94,9 +101,12 @@ contract Crowdfunding {
         emit Donation(owner, msg.value, campaigns[_i]);
     }
 
+    // This function ends a campaign by transferring the raised amount to the benefactor and deleting the campaign from the array
+    // It checks if the campaign duration has passed, if the benefactor address is valid, transfers the amount to the benefactor, and deletes the campaign
+    // @param _i The index of the campaign to end
     function endCampaign(uint _i) public customReentrancyGuard {
-        
-        require(campaigns[_i].duration <= block.timestamp, "Campaign deadline not reached");
+
+        require(block.timestamp >= campaigns[_i].duration, "Campaign duration has elapsed");
 
         Campaign storage endedCampaign = campaigns[_i];
         require(endedCampaign.benefactor != address(0), "Campaign does not exist");
