@@ -42,6 +42,7 @@ contract Crowdfunding {
     
     event CampaignCreated(Campaign);
     event Donation (address donor, uint amount, Campaign campaign);
+    event CampaignEnded(uint index, address benefactor, uint amount);
 
     function createCampaign(string memory _name, string memory _description, address _benefactor, uint _goal, uint _duration) public onlyOwner {
         Campaign memory campaign = Campaign({
@@ -93,12 +94,18 @@ contract Crowdfunding {
 
     // Function to donate to a campaign, we grab the capmign by the index and add the msg.value amount to the amount raised. Before that we check to make sure that the duration time has not yet passed. Then emitting a donations event
     function donate(uint _i) public payable {
+        // Added a check to ensure the campaign index is valid.
+        require(_i < campaigns.length, "Invalid campaign index");
         require(block.timestamp < campaigns[_i].duration, "Campaign duration has elapsed");
 
-        Campaign memory destination = campaigns[_i];
+        Campaign storage destination = campaigns[_i];
+        
+        // Check for potential overflow
+        require(destination.amountRaised + msg.value >= destination.amountRaised, "Overflow prevented");
+        
         destination.amountRaised += msg.value;
 
-        emit Donation(owner, msg.value, campaigns[_i]);
+        emit Donation(msg.sender, msg.value, campaigns[_i]);
     }
 
     // This function ends a campaign by transferring the raised amount to the benefactor and deleting the campaign from the array
@@ -111,9 +118,20 @@ contract Crowdfunding {
         Campaign storage endedCampaign = campaigns[_i];
         require(endedCampaign.benefactor != address(0), "Campaign does not exist");
 
-        // payable(endedCampaign.benefactor).call{value: endedCampaign.amountRaised}("");
-        payable(endedCampaign.benefactor).transfer(endedCampaign.amountRaised);
+        uint256 amountToTransfer = endedCampaign.amountRaised;
+        require(amountToTransfer > 0, "No funds to transfer");
+
+        // Reset the campaign before transfer to prevent reentrancy
+        endedCampaign.amountRaised = 0;
+
+        // Transfer funds
+        (bool success, ) = payable(endedCampaign.benefactor).call{value: amountToTransfer}("");
+        require(success, "Transfer failed");
+
+        // Emit an event
+        emit CampaignEnded(_i, endedCampaign.benefactor, amountToTransfer);
 
         delete campaigns[_i];
     }
+
 }
