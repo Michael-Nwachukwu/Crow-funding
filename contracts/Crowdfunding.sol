@@ -46,17 +46,13 @@ contract Crowdfunding {
         bool ended;
     }
 
-    // 7776000
-    // 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
-    // 3000000000000000000
-
     /** 
      * @notice An array of campaigns that have been created by users.
     */
     Campaign[] public campaigns;
     
-    event CampaignCreated(Campaign);
-    event Donation (address donor, uint amount, uint campaign);
+    event CampaignCreated(address indexed creator, Campaign);
+    event Donation (address indexed donor, uint amount, uint campaign);
     event CampaignEnded(uint index, address benefactor, uint amount);
 
     /** 
@@ -77,7 +73,7 @@ contract Crowdfunding {
             ended: false
         });
         campaigns.push(campaign);
-        emit CampaignCreated(campaign);
+        emit CampaignCreated(msg.sender, campaign);
     }
 
     /** 
